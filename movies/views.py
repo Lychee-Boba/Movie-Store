@@ -7,9 +7,8 @@ from django.db.models.functions import Replace, Lower
 
 def index(request):
     search_term = request.GET.get('search')
-    new_search = search_term.replace("-", "").replace(" ", "").lower()
     if search_term:
-        movies = Movie.objects.filter(name__icontains=new_search)
+        movies = Movie.objects.filter(name__icontains=search_term)
     else:
         movies = Movie.objects.all()
 
