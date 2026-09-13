@@ -1,7 +1,6 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from .models import Movie, Review
+from .models import Movie, Review, Report
 from django.contrib.auth.decorators import login_required
-from django.db.models.functions import Replace, Lower
 
 # Create your views here.
 
@@ -19,13 +18,47 @@ def index(request):
 
 def show(request, id):
     movie = Movie.objects.get(id=id)
-    reviews = Review.objects.filter(movie=movie)
+    reviews = Review.objects.filter(movie=movie, reported=False)
 
     template_data = {}
     template_data['title'] = movie.name
     template_data['movie'] = movie
     template_data['reviews'] = reviews
     return render(request, 'movies/show.html',{'template_data': template_data})
+
+def report_review(request, id, review_id):
+    review = get_object_or_404(Review, id=review_id, movie_id=id)
+    if request.user == review.user:
+        return redirect('movies.show', id=id)
+    
+    if request.method == 'GET':
+        template_data = {}
+        template_data['title'] = 'Report Review'
+        template_data['review'] = review
+        template_data['movie'] = review.movie
+        return render(request, 'movies/report.html', {'template_data': template_data})
+    elif request.method == 'POST' and request.POST['reason'] != '':
+        movie = Movie.objects.get(id=id) 
+        review = Review.objects.get(id=review_id)
+
+        report = Report()
+        report.review = review
+        report.movie = movie
+        report.review_author = review.user
+        if request.user.is_authenticated:
+            report.report_user = request.user
+        else:
+            report.report_user = None
+
+        report.reason = request.POST['reason']
+        report.save()
+
+        review.reported = True
+        review.save()
+        
+        return redirect('movies.show', id=id)
+    else:
+        return redirect('movies.show', id=id)
 
 @login_required
 def create_review(request, id):
